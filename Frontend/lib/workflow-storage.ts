@@ -5,6 +5,7 @@
 
 const WORKFLOW_STORAGE_KEY = "flowmaster_workflow_data"
 const ARTIFACT_STORAGE_KEY = "flowmaster_artifact_data"
+const SIMULATION_STATE_KEY = "flowmaster_simulation_state"
 
 export interface WorkflowData {
   userPrompt: string
@@ -98,5 +99,45 @@ export function clearWorkflowData(): void {
 export function clearArtifactData(): void {
   if (typeof window === "undefined") return
   sessionStorage.removeItem(ARTIFACT_STORAGE_KEY)
+}
+
+/**
+ * Store simulation state (currentStep, messages, etc.)
+ */
+export function storeSimulationState(state: {
+  currentStep: number
+  messages: any[]
+  isComplete: boolean
+  isPaused: boolean
+}): void {
+  if (typeof window === "undefined") return
+  sessionStorage.setItem(SIMULATION_STATE_KEY, JSON.stringify(state))
+}
+
+/**
+ * Retrieve simulation state
+ */
+export function getSimulationState(): {
+  currentStep: number
+  messages: any[]
+  isComplete: boolean
+  isPaused: boolean
+} | null {
+  if (typeof window === "undefined") return null
+  try {
+    const data = sessionStorage.getItem(SIMULATION_STATE_KEY)
+    return data ? JSON.parse(data) : null
+  } catch (error) {
+    console.error("Failed to retrieve simulation state:", error)
+    return null
+  }
+}
+
+/**
+ * Clear simulation state
+ */
+export function clearSimulationState(): void {
+  if (typeof window === "undefined") return
+  sessionStorage.removeItem(SIMULATION_STATE_KEY)
 }
 

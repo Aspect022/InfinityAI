@@ -97,7 +97,7 @@ export function AgentMessage({ message, index }: { message: Message; index: numb
           {/* Initial Output */}
           {message.type === "initial" && message.phase.output && (
             <>
-              <p className="leading-relaxed">{message.phase.output}</p>
+            <p className="leading-relaxed">{message.phase.output}</p>
               
               {/* Artifact Thumbnails */}
               {message.phase.wireframes && message.phase.wireframes.length > 0 && (

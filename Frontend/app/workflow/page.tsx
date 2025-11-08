@@ -39,17 +39,17 @@ function WorkflowContent() {
   }, [])
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-text-secondary">
+      return (
+        <div className="min-h-screen flex items-center justify-center text-text-secondary">
         <div className="text-center">
           <div className="inline-flex items-center justify-center gap-2 mb-4">
             <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
             <span>Loading workflow...</span>
           </div>
+          </div>
         </div>
-      </div>
-    )
-  }
+      )
+    }
 
   if (!workflow) {
     return (

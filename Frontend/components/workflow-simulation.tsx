@@ -1,12 +1,14 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { ChevronLeft, ChevronRight, Pause, Play, Eye, Code, Database } from "lucide-react"
+import { ChevronLeft, ChevronRight, Pause, Play, Eye, Code, Database, FastForward, Check, X, MessageSquare } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useWorkflowSimulation } from "@/hooks/useWorkflowSimulation"
 import { AgentMessage } from "@/components/agent-message"
 import { Button } from "@/components/ui/button"
-import { storeArtifactData } from "@/lib/workflow-storage"
+import { Textarea } from "@/components/ui/textarea"
+import { storeArtifactData, storeSimulationState } from "@/lib/workflow-storage"
+import { AgentThoughts } from "@/components/agent-thoughts"
 
 interface Agent {
   step: number
@@ -41,10 +43,27 @@ interface WorkflowData {
 }
 
 export function WorkflowSimulation({ workflow }: { workflow: WorkflowData }) {
-  const { currentStep, messages, isComplete, isPaused, setIsPaused } = useWorkflowSimulation(workflow.agentWorkflow)
-  const [autoScroll, setAutoScroll] = useState(true)
+  const [autoApprove, setAutoApprove] = useState(false)
+  const [userFeedback, setUserFeedback] = useState<Record<number, string>>({})
+  const [isRegenerating, setIsRegenerating] = useState<Record<number, boolean>>({})
+  const { currentStep, messages, isComplete, isPaused, setIsPaused, pendingApproval, approveStep } = useWorkflowSimulation(workflow.agentWorkflow, autoApprove)
+  const [autoScroll, setAutoScroll] = useState(false) // Disabled by default
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
+  
+  // Save state when navigating away
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      storeSimulationState({
+        currentStep,
+        messages,
+        isComplete,
+        isPaused
+      })
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
+  }, [currentStep, messages, isComplete, isPaused])
 
   const currentAgent = workflow.agentWorkflow[currentStep]
 
@@ -142,6 +161,15 @@ export function WorkflowSimulation({ workflow }: { workflow: WorkflowData }) {
             {isPaused ? <Play className="w-4 h-4 mr-2" /> : <Pause className="w-4 h-4 mr-2" />}
             {isPaused ? "Resume" : "Pause"}
           </Button>
+          <Button
+            onClick={() => setAutoApprove(!autoApprove)}
+            variant={autoApprove ? "default" : "outline"}
+            size="sm"
+            className={autoApprove ? "bg-green-600 hover:bg-green-700" : "border-border hover:bg-surface"}
+          >
+            <FastForward className="w-4 h-4 mr-2" />
+            {autoApprove ? "Auto-Approve ON" : "Auto-Approve"}
+          </Button>
         </div>
 
         {/* User Prompt Display */}
@@ -188,19 +216,14 @@ export function WorkflowSimulation({ workflow }: { workflow: WorkflowData }) {
           </div>
 
           {/* Agent Thoughts */}
-          <div className="glass-card p-4 border border-border rounded-2xl">
-            <p className="text-sm font-semibold text-text-primary mb-3">Agent thought bits</p>
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              {currentAgent.phases[0]?.thoughts?.map((thought, idx) => (
-                <div
-                  key={idx}
-                  className="text-xs p-2 bg-primary/10 border-l-2 border-primary text-text-secondary rounded"
-                >
-                  {thought}
-                </div>
-              ))}
-            </div>
-          </div>
+          <AgentThoughts
+            agentName={currentAgent.agent}
+            agentRole={currentAgent.role}
+            initialThoughts={currentAgent.phases[0]?.thoughts}
+            userPrompt={workflow.userPrompt}
+            isActive={!isPaused && !isComplete}
+            color={currentAgent.color}
+          />
 
           {/* Next Step Preview */}
           {currentStep < workflow.agentWorkflow.length - 1 && (
@@ -264,6 +287,118 @@ export function WorkflowSimulation({ workflow }: { workflow: WorkflowData }) {
             {messages.length === 0 && (
               <div className="h-full flex items-center justify-center text-text-secondary">
                 <p className="text-sm">Agents are thinking...</p>
+              </div>
+            )}
+
+            {/* Approval UI - Shows after agent completes */}
+            {pendingApproval !== null && (
+              <div className="mt-6 p-4 glass-card border-2 rounded-xl" style={{ borderColor: `${workflow.agentWorkflow[pendingApproval]?.color}80` }}>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold" style={{ backgroundColor: workflow.agentWorkflow[pendingApproval]?.color }}>
+                    {pendingApproval + 1}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-text-primary">{workflow.agentWorkflow[pendingApproval]?.agent} completed</h3>
+                    <p className="text-xs text-text-muted">Review and approve to continue</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Textarea
+                    placeholder="Add feedback (optional)..."
+                    value={userFeedback[pendingApproval] || ""}
+                    onChange={(e) => setUserFeedback({ ...userFeedback, [pendingApproval]: e.target.value })}
+                    className="bg-transparent border-border focus-visible:ring-accent-primary/50 min-h-[80px]"
+                  />
+                  
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={() => {
+                        approveStep(pendingApproval)
+                        // Clear feedback after approval
+                        setUserFeedback({ ...userFeedback, [pendingApproval]: "" })
+                      }}
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      <Check className="w-4 h-4 mr-2" />
+                      Approve & Continue
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        const stepIndex = pendingApproval
+                        setIsRegenerating({ ...isRegenerating, [stepIndex]: true })
+                        
+                        try {
+                          const agent = workflow.agentWorkflow[stepIndex]
+                          const initialPhase = agent.phases.find(p => p.type === "initial_output")
+                          const previousOutput = initialPhase?.output || ""
+                          
+                          // Call regenerate API
+                          const response = await fetch("/api/regenerate-agent-output", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              agentName: agent.agent,
+                              agentRole: agent.role,
+                              previousOutput,
+                              feedback: userFeedback[stepIndex] || "User rejected this output. Please regenerate with improvements.",
+                              userPrompt: workflow.userPrompt,
+                              requirements: workflow.clarifiedBrief?.description
+                            })
+                          })
+                          
+                          if (response.ok) {
+                            const { regeneratedOutput } = await response.json()
+                            
+                            // Update the agent's initial_output phase
+                            agent.phases = agent.phases.map((phase: any) => {
+                              if (phase.type === "initial_output") {
+                                return { ...phase, output: regeneratedOutput }
+                              }
+                              return phase
+                            })
+                            
+                            // Update workflow in sessionStorage
+                            const { storeWorkflowData } = await import("@/lib/workflow-storage")
+                            storeWorkflowData(workflow)
+                            
+                            // Remove old messages for this agent and add new one
+                            const filteredMessages = messages.filter(m => m.agentName !== agent.agent)
+                            const newMessage = {
+                              id: `${stepIndex}-${agent.agent.replace(/\s+/g, '-')}-0-initial_output-regenerated`,
+                              type: "initial" as const,
+                              agentName: agent.agent,
+                              agentColor: agent.color,
+                              phase: agent.phases[0],
+                              phaseIndex: 0
+                            }
+                            
+                            // Force re-render by updating messages
+                            // Note: This is a workaround - ideally we'd update the hook's state
+                            window.location.reload() // Reload to show regenerated output
+                          }
+                        } catch (error) {
+                          console.error("Failed to regenerate:", error)
+                          alert("Failed to regenerate output. Please try again.")
+                        } finally {
+                          setIsRegenerating({ ...isRegenerating, [stepIndex]: false })
+                        }
+                      }}
+                      variant="outline"
+                      disabled={isRegenerating[pendingApproval || -1]}
+                      className="flex-1 border-red-500/50 text-red-400 hover:bg-red-500/10 disabled:opacity-50"
+                    >
+                      {isRegenerating[pendingApproval || -1] ? (
+                        <>Regenerating...</>
+                      ) : (
+                        <>
+                          <X className="w-4 h-4 mr-2" />
+                          Reject & Send Feedback
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
           </div>

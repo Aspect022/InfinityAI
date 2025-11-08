@@ -196,38 +196,88 @@ CRITICAL: Return ONLY a valid JSON object with absolutely NO markdown formatting
     const responseText = result.response.text()
     console.log("[v0] API Response received, length:", responseText.length)
 
-    let jsonStr = responseText.trim()
+    // Safe JSON parsing function
+    function safeJSONParse(str: string) {
+      try {
+        // Remove code fences like ```json and ```
+        let clean = str
+          .replace(/```json\s*/gi, "")
+          .replace(/```\s*/g, "")
+          .trim()
 
-    jsonStr = jsonStr.replace(/```json\s*/g, "").replace(/```\s*/g, "")
-
-    const startIdx = jsonStr.indexOf("{")
-    if (startIdx === -1) {
-      console.error("[v0] No JSON object found. Response start:", responseText.substring(0, 300))
-      throw new Error("No JSON object found in response")
-    }
-
-    let braceCount = 0
-    let endIdx = -1
-    for (let i = startIdx; i < jsonStr.length; i++) {
-      if (jsonStr[i] === "{") braceCount++
-      if (jsonStr[i] === "}") {
-        braceCount--
-        if (braceCount === 0) {
-          endIdx = i
-          break
+        // Find the first { and try to extract complete JSON
+        const startIdx = clean.indexOf("{")
+        if (startIdx === -1) {
+          throw new Error("No JSON object found in response")
         }
+
+        // Count braces to find matching closing brace
+        let braceCount = 0
+        let endIdx = -1
+        for (let i = startIdx; i < clean.length; i++) {
+          if (clean[i] === "{") braceCount++
+          if (clean[i] === "}") {
+            braceCount--
+            if (braceCount === 0) {
+              endIdx = i
+              break
+            }
+          }
+        }
+
+        // If no closing brace found, try to fix by adding missing braces
+        if (endIdx === -1) {
+          const openBraces = (clean.match(/{/g) || []).length
+          const closeBraces = (clean.match(/}/g) || []).length
+          const missingBraces = openBraces - closeBraces
+
+          if (missingBraces > 0) {
+            // Try to add missing closing braces
+            clean = clean.substring(startIdx) + "}".repeat(missingBraces)
+            console.log("[v0] Attempting to fix JSON by adding", missingBraces, "closing braces")
+          } else {
+            throw new Error("Malformed JSON - cannot determine structure")
+          }
+        } else {
+          clean = clean.substring(startIdx, endIdx + 1)
+        }
+
+        return JSON.parse(clean)
+      } catch (err) {
+        console.error("[v0] Safe JSON parse failed:", err)
+        // Try one more time with jsonrepair-like approach
+        try {
+          // Remove any trailing incomplete strings or arrays
+          let repaired = str.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim()
+          const startIdx = repaired.indexOf("{")
+          if (startIdx !== -1) {
+            // Find the last complete structure
+            let lastValidBrace = repaired.lastIndexOf("}")
+            if (lastValidBrace > startIdx) {
+              repaired = repaired.substring(startIdx, lastValidBrace + 1)
+              // Count and balance braces
+              const openCount = (repaired.match(/{/g) || []).length
+              const closeCount = (repaired.match(/}/g) || []).length
+              if (openCount > closeCount) {
+                repaired += "}".repeat(openCount - closeCount)
+              }
+              return JSON.parse(repaired)
+            }
+          }
+        } catch (retryErr) {
+          console.error("[v0] Retry parse also failed:", retryErr)
+        }
+        return null
       }
     }
 
-    if (endIdx === -1) {
-      console.error("[v0] No closing brace found. Response:", responseText.substring(0, 300))
-      throw new Error("Malformed JSON - missing closing brace")
+    const workflow = safeJSONParse(responseText)
+    if (!workflow) {
+      console.error("[v0] Failed to parse JSON. Response preview:", responseText.substring(0, 500))
+      throw new Error("Malformed JSON - could not parse response")
     }
 
-    const cleanJson = jsonStr.substring(startIdx, endIdx + 1)
-    console.log("[v0] Extracted JSON, length:", cleanJson.length)
-
-    const workflow = JSON.parse(cleanJson)
+    console.log("[v0] Workflow parsed successfully")
 
     if (!workflow.agentWorkflow || !Array.isArray(workflow.agentWorkflow)) {
       console.error("[v0] Invalid workflow structure. Keys:", Object.keys(workflow))
@@ -235,6 +285,28 @@ CRITICAL: Return ONLY a valid JSON object with absolutely NO markdown formatting
     }
 
     console.log("[v0] Workflow parsed successfully, agents:", workflow.agentWorkflow.length)
+    
+    // Deduplicate phases for each agent (fix CEO duplicate critic/improver issue)
+    workflow.agentWorkflow = workflow.agentWorkflow.map((agent: any) => {
+      if (!agent.phases || !Array.isArray(agent.phases)) return agent
+      
+      // Remove duplicate phases by type, keeping only the first occurrence
+      const seenTypes = new Set<string>()
+      const uniquePhases = agent.phases.filter((phase: any) => {
+        if (seenTypes.has(phase.type)) {
+          console.log(`[v0] Removing duplicate phase type: ${phase.type} for agent: ${agent.agent}`)
+          return false
+        }
+        seenTypes.add(phase.type)
+        return true
+      })
+      
+      return {
+        ...agent,
+        phases: uniquePhases
+      }
+    })
+    
     return Response.json({ workflow })
   } catch (error) {
     console.error("[v0] Workflow generation error:", error instanceof Error ? error.message : String(error))

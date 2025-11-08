@@ -1,12 +1,12 @@
-import { GoogleGenerativeAI } from "@google/generative-ai"
+import Groq from "groq-sdk"
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY!,
+})
 
 export async function POST(request: Request) {
   try {
     const { wireframes, requirements, userPrompt } = await request.json()
-
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" })
 
     const prompt = `You are a Frontend Engineer Agent creating React/Next.js components.
 
@@ -16,26 +16,52 @@ ${JSON.stringify(wireframes, null, 2)}
 Requirements: ${requirements}
 User Prompt: ${userPrompt}
 
-Generate React/Next.js component code based on the wireframes. Include:
-1. Component structure
-2. Styling (using Tailwind CSS)
-3. Props and types
-4. Basic functionality
+Generate 7-8 React/Next.js component files based on the wireframes. Each file should have at least 30-40 lines of code. Include:
+1. Component structure with proper TypeScript types
+2. Styling using Tailwind CSS
+3. Props and interfaces
+4. Basic functionality and hooks
+5. Proper imports and exports
 
-Return JSON format:
+Generate files like:
+- components/HomePage.tsx (main page, 40+ lines)
+- components/Dashboard.tsx
+- components/Navigation.tsx
+- components/Button.tsx
+- components/Card.tsx
+- components/Form.tsx
+- components/Modal.tsx
+- utils/helpers.ts
+
+Return JSON format with properly formatted code:
 {
   "frontendCode": [
     {
       "path": "components/HomePage.tsx",
-      "code": "// Complete React component code here",
+      "code": "// Complete formatted React component code here with proper indentation",
       "language": "tsx",
       "description": "Homepage component"
     }
   ]
 }`
 
-    const result = await model.generateContent(prompt)
-    const responseText = result.response.text()
+    const completion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: "You are a Frontend Engineer Agent creating React/Next.js components. Always return valid JSON only, no markdown formatting."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.7,
+      max_tokens: 8000,
+    })
+
+    const responseText = completion.choices[0]?.message?.content || ""
 
     let jsonStr = responseText.trim()
     jsonStr = jsonStr.replace(/```json\s*/g, "").replace(/```\s*/g, "")
