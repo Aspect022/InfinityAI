@@ -96,4 +96,3 @@ Return JSON format with properly formatted code:
     return Response.json({ error: "Failed to generate backend code" }, { status: 500 })
   }
 }
-

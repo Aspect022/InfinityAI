@@ -3,8 +3,10 @@
 import { useState, useEffect, useRef } from "react"
 import { getSimulationState, storeSimulationState } from "@/lib/workflow-storage"
 
-interface Phase {
-  type: "initial_output" | "critic_review" | "improver_refinement" | "final_approval"
+export type SimulationPhaseType = "initial_output" | "critic_review" | "improver_refinement" | "final_approval"
+
+export interface SimulationPhase {
+  type: SimulationPhaseType
   thoughts?: string[]
   output?: string
   strengths?: string[]
@@ -19,26 +21,26 @@ interface Phase {
   backendCode?: Array<{ path: string; code: string; language: string }>
 }
 
-interface Agent {
+export interface WorkflowAgent {
   step: number
   agent: string
   role: string
   color: string
-  phases: Phase[]
+  phases: SimulationPhase[]
 }
 
-interface Message {
+export interface SimulationMessage {
   id: string
   type: "initial" | "critic" | "improver" | "approval"
   agentName: string
   agentColor: string
-  phase: Phase
+  phase: SimulationPhase
   phaseIndex: number
 }
 
-export function useWorkflowSimulation(agents: Agent[], autoApprove: boolean = false) {
+export function useWorkflowSimulation(agents: WorkflowAgent[], autoApprove: boolean = false) {
   const [currentStep, setCurrentStep] = useState(0)
-  const [messages, setMessages] = useState<Message[]>([])
+  const [messages, setMessages] = useState<SimulationMessage[]>([])
   const [isComplete, setIsComplete] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const [pendingApproval, setPendingApproval] = useState<number | null>(null) // stepIndex waiting for approval
@@ -115,32 +117,53 @@ export function useWorkflowSimulation(agents: Agent[], autoApprove: boolean = fa
           const messageId = `${stepIndex}-${agent.agent.replace(/\s+/g, '-')}-${phaseIndex}-${phase.type}-${messageCounterRef.current++}`
 
           // Add message based on phase type
-          let messageType: "initial" | "critic" | "improver" | "approval" = "initial"
+          let messageType: SimulationMessage["type"] = "initial"
           if (phase.type === "critic_review") messageType = "critic"
           else if (phase.type === "improver_refinement") messageType = "improver"
           else if (phase.type === "final_approval") messageType = "approval"
 
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: messageId,
-              type: messageType,
-              agentName: agent.agent,
-              agentColor: agent.color,
-              phase,
-              phaseIndex,
-            },
-          ])
+          // Prevent duplicate messages - check if this exact message already exists
+          setMessages((prev) => {
+            // Check if message with same agent, phase type, and phaseIndex already exists
+            const isDuplicate = prev.some(
+              (m) =>
+                m.agentName === agent.agent &&
+                m.phaseIndex === phaseIndex &&
+                m.phase.type === phase.type
+            )
+            if (isDuplicate) {
+              console.log(`[v0] Skipping duplicate message: ${agent.agent} - ${phase.type}`)
+              return prev
+            }
+            return [
+              ...prev,
+              {
+                id: messageId,
+                type: messageType,
+                agentName: agent.agent,
+                agentColor: agent.color,
+                phase,
+                phaseIndex,
+              },
+            ]
+          })
 
-          // Delay based on phase
-          const delays: Record<string, number> = {
-            initial_output: 2000,
-            critic_review: 1000,
-            improver_refinement: 1500,
-            final_approval: 1000,
+          // Delay based on phase with random variation to make it more realistic
+          const phaseDelayRanges: Record<SimulationPhase["type"], { min: number; max: number }> = {
+            initial_output: { min: 5000, max: 20000 },
+            critic_review: { min: 5000, max: 20000 },
+            improver_refinement: { min: 5000, max: 20000 },
+            final_approval: { min: 5000, max: 20000 },
           }
 
-          await new Promise((resolve) => setTimeout(resolve, delays[phase.type] || 1000))
+          const getPhaseDelay = (phaseType: SimulationPhase["type"]): number => {
+            const range = phaseDelayRanges[phaseType] || { min: 900, max: 2000 }
+            const randomOffset = Math.random() * (range.max - range.min)
+            return Math.floor(range.min + randomOffset)
+          }
+
+          const delayMs = getPhaseDelay(phase.type)
+          await new Promise((resolve) => setTimeout(resolve, delayMs))
         }
 
         // After agent completes all phases, wait for approval (unless auto-approve)

@@ -76,4 +76,3 @@ export function WireframeFeedback({ onApprove, onReject, onSubmitFeedback, isLoa
     </div>
   )
 }
-

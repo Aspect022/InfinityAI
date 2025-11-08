@@ -1,17 +1,17 @@
-"use client";
+"use client"
 
-import { usePathname, useRouter } from "next/navigation";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Zap } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Zap } from "lucide-react"
 
-export function Header() {
-  const pathname = usePathname();
-  const router = useRouter();
+export default function Header() {
+  const pathname = usePathname()
+  const router = useRouter()
 
-  const isHome = pathname === "/";
-  const isIdeas = pathname === "/ideas";
-  const isWorkflow = pathname === "/workflow";
+  const isHome = pathname === "/"
+  const isIdeas = pathname === "/ideas"
+  const isWorkflow = pathname === "/workflow"
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50">
@@ -83,5 +83,5 @@ export function Header() {
         </nav>
       </div>
     </header>
-  );
+  )
 }

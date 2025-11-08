@@ -6,6 +6,7 @@
 const WORKFLOW_STORAGE_KEY = "flowmaster_workflow_data"
 const ARTIFACT_STORAGE_KEY = "flowmaster_artifact_data"
 const SIMULATION_STATE_KEY = "flowmaster_simulation_state"
+const PENDING_ARTIFACT_JOB_KEY = "flowmaster_pending_artifact_job"
 
 export interface WorkflowData {
   userPrompt: string
@@ -23,6 +24,11 @@ export interface ArtifactData {
   backendCode?: Array<{ path: string; code: string; language: string }>
   workflow?: WorkflowData
   agent?: any
+}
+
+export interface PendingArtifactJob {
+  type: "wireframes" | "frontend" | "backend"
+  payload: Record<string, any>
 }
 
 /**
@@ -141,3 +147,32 @@ export function clearSimulationState(): void {
   sessionStorage.removeItem(SIMULATION_STATE_KEY)
 }
 
+/**
+ * Store a pending artifact generation job so the processing page can execute it
+ */
+export function storePendingArtifactJob(job: PendingArtifactJob): void {
+  if (typeof window === "undefined") return
+  sessionStorage.setItem(PENDING_ARTIFACT_JOB_KEY, JSON.stringify(job))
+}
+
+/**
+ * Retrieve pending artifact generation job
+ */
+export function getPendingArtifactJob(): PendingArtifactJob | null {
+  if (typeof window === "undefined") return null
+  try {
+    const data = sessionStorage.getItem(PENDING_ARTIFACT_JOB_KEY)
+    return data ? (JSON.parse(data) as PendingArtifactJob) : null
+  } catch (error) {
+    console.error("Failed to retrieve pending artifact job:", error)
+    return null
+  }
+}
+
+/**
+ * Clear pending artifact generation job
+ */
+export function clearPendingArtifactJob(): void {
+  if (typeof window === "undefined") return
+  sessionStorage.removeItem(PENDING_ARTIFACT_JOB_KEY)
+}

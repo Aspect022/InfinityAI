@@ -74,4 +74,3 @@ export function ArtifactImproverPanel({ improvements, isLoading }: ArtifactImpro
     </motion.div>
   )
 }
-

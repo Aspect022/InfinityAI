@@ -125,4 +125,3 @@ export function ArtifactCriticPanel({ criticReview, isLoading }: ArtifactCriticP
     </motion.div>
   )
 }
-

@@ -284,4 +284,3 @@ export default function WireframesPage() {
     </Suspense>
   )
 }
-

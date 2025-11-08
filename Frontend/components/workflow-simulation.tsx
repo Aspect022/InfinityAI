@@ -3,12 +3,25 @@
 import { useState, useRef, useEffect } from "react"
 import { ChevronLeft, ChevronRight, Pause, Play, Eye, Code, Database, FastForward, Check, X, MessageSquare } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useWorkflowSimulation } from "@/hooks/useWorkflowSimulation"
+import {
+  useWorkflowSimulation,
+  type WorkflowAgent as SimulationWorkflowAgent,
+  type SimulationPhaseType,
+  type SimulationPhase,
+  type SimulationMessage,
+} from "@/hooks/useWorkflowSimulation"
 import { AgentMessage } from "@/components/agent-message"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { storeArtifactData, storeSimulationState } from "@/lib/workflow-storage"
+import {
+  storeArtifactData,
+  storeSimulationState,
+  storePendingArtifactJob,
+  storeWorkflowData,
+} from "@/lib/workflow-storage"
 import { AgentThoughts } from "@/components/agent-thoughts"
+
+type Agent = SimulationWorkflowAgent
 
 interface Agent {
   step: number
@@ -16,7 +29,7 @@ interface Agent {
   role: string
   color: string
   phases: Array<{
-    type: string
+    type: "initial_output" | "critic_review" | "improver_refinement" | "final_approval"
     thoughts?: string[]
     output?: string
     strengths?: string[]
@@ -70,54 +83,169 @@ export function WorkflowSimulation({ workflow }: { workflow: WorkflowData }) {
   // Check if current agent has completed and has artifacts
   const getArtifactButton = (agent: Agent) => {
     const initialPhase = agent.phases.find(p => p.type === "initial_output")
-    if (!initialPhase) return null
+    if (!initialPhase) {
+      agent.phases = [
+        {
+          type: "initial_output",
+          thoughts: [],
+          output: "",
+          wireframes: [],
+        },
+        ...agent.phases,
+      ]
+    }
 
-    if (agent.agent === "UX Designer Agent" && initialPhase.wireframes && initialPhase.wireframes.length > 0) {
+    const resolvedPhase = agent.phases.find((p) => p.type === "initial_output")
+    if (!resolvedPhase) return null
+
+    resolvedPhase.wireframes = resolvedPhase.wireframes ?? []
+
+    if (agent.agent === "UX Designer Agent") {
+      const hasGeneratedWireframes = resolvedPhase.wireframes.some(
+        (wf: any) => wf.data && wf.data.startsWith("data:image")
+      )
+
       return {
-        label: "View Wireframes",
+        label: hasGeneratedWireframes ? "View Wireframes" : "Select Wireframes",
         icon: Eye,
-        onClick: () => {
-          // Store artifact data in sessionStorage
-          storeArtifactData({
-            wireframes: initialPhase.wireframes,
-            workflow,
-            agent
+        onClick: async () => {
+          // Save current state before navigating
+          storeSimulationState({
+            currentStep,
+            messages,
+            isComplete,
+            isPaused,
           })
-          router.push("/wireframes")
+          
+          const needsSelection = !hasGeneratedWireframes
+
+          if (needsSelection) {
+            const agentIndex = getAgentStepIndex(agent.agent)
+
+            // Persist latest workflow snapshot so processing can enrich it
+            storeWorkflowData(workflow)
+
+            // Use static wireframe selection instead of generation
+            storePendingArtifactJob({
+              type: "wireframes",
+              payload: {
+                request: {
+                  prd: workflow.clarifiedBrief?.description,
+                  requirements: workflow.clarifiedBrief,
+                  userPrompt: workflow.userPrompt,
+                },
+                agentIndex,
+              },
+            })
+
+            router.push("/processing?type=wireframes")
+          } else {
+            // Wireframes already exist, navigate directly
+            storeArtifactData({
+              type: "wireframes",
+              artifacts: resolvedPhase.wireframes,
+              agentIndex: getAgentStepIndex(agent.agent),
+            })
+            router.push("/wireframes")
+          }
         },
         color: agent.color
       }
     }
 
-    if (agent.agent === "Frontend Engineer Agent" && initialPhase.frontendCode && initialPhase.frontendCode.length > 0) {
+    if (agent.agent === "Frontend Engineer Agent") {
+      const hasGeneratedFrontend = resolvedPhase.frontendCode && resolvedPhase.frontendCode.length > 0
       return {
-        label: "View Frontend Code",
+        label: hasGeneratedFrontend ? "View Frontend Code" : "Generate Frontend Code",
         icon: Code,
-        onClick: () => {
-          // Store artifact data in sessionStorage
-          storeArtifactData({
-            frontendCode: initialPhase.frontendCode,
-            workflow,
-            agent
+        onClick: async () => {
+          // Save current state before navigating
+          storeSimulationState({
+            currentStep,
+            messages,
+            isComplete,
+            isPaused,
           })
-          router.push("/frontend-code")
+
+          const needsGeneration = !hasGeneratedFrontend
+
+          if (needsGeneration) {
+            const agentIndex = getAgentStepIndex(agent.agent)
+
+            // Persist latest workflow snapshot so processing can enrich it
+            storeWorkflowData(workflow)
+
+            storePendingArtifactJob({
+              type: "frontend",
+              payload: {
+                request: {
+                  wireframes: resolvedPhase.wireframes,
+                  requirements: workflow.clarifiedBrief?.description,
+                  userPrompt: workflow.userPrompt,
+                },
+                agentIndex,
+              },
+            })
+
+            router.push("/processing?type=frontend")
+          } else {
+            // Frontend code already exists, navigate directly
+            storeArtifactData({
+              type: "frontend",
+              artifacts: resolvedPhase.frontendCode,
+              agentIndex: getAgentStepIndex(agent.agent),
+            })
+            router.push("/frontend-code")
+          }
         },
         color: agent.color
       }
     }
 
-    if (agent.agent === "Backend Engineer Agent" && initialPhase.backendCode && initialPhase.backendCode.length > 0) {
+    if (agent.agent === "Backend Engineer Agent") {
+      const hasGeneratedBackend = resolvedPhase.backendCode && resolvedPhase.backendCode.length > 0
       return {
-        label: "View Backend Code",
+        label: hasGeneratedBackend ? "View Backend Code" : "Generate Backend Code",
         icon: Database,
-        onClick: () => {
-          // Store artifact data in sessionStorage
-          storeArtifactData({
-            backendCode: initialPhase.backendCode,
-            workflow,
-            agent
+        onClick: async () => {
+          // Save current state before navigating
+          storeSimulationState({
+            currentStep,
+            messages,
+            isComplete,
+            isPaused,
           })
-          router.push("/backend-code")
+
+          const needsGeneration = !hasGeneratedBackend
+
+          if (needsGeneration) {
+            const agentIndex = getAgentStepIndex(agent.agent)
+
+            // Persist latest workflow snapshot so processing can enrich it
+            storeWorkflowData(workflow)
+
+            storePendingArtifactJob({
+              type: "backend",
+              payload: {
+                request: {
+                  requirements: workflow.clarifiedBrief?.description,
+                  userPrompt: workflow.userPrompt,
+                  frontendCode: resolvedPhase.frontendCode,
+                },
+                agentIndex,
+              },
+            })
+
+            router.push("/processing?type=backend")
+          } else {
+            // Backend code already exists, navigate directly
+            storeArtifactData({
+              type: "backend",
+              artifacts: resolvedPhase.backendCode,
+              agentIndex: getAgentStepIndex(agent.agent),
+            })
+            router.push("/backend-code")
+          }
         },
         color: agent.color
       }
@@ -149,28 +277,8 @@ export function WorkflowSimulation({ workflow }: { workflow: WorkflowData }) {
     <div className="min-h-screen bg-background px-4 py-6">
       {/* Top Navigation Bar */}
       <div className="flex justify-between items-center mb-6 max-w-7xl mx-auto">
-        <div className="flex gap-2">
-          <Button
-            onClick={() => {
-              setIsPaused(!isPaused)
-            }}
-            variant="outline"
-            size="sm"
-            className="border-border hover:bg-surface"
-          >
-            {isPaused ? <Play className="w-4 h-4 mr-2" /> : <Pause className="w-4 h-4 mr-2" />}
-            {isPaused ? "Resume" : "Pause"}
-          </Button>
-          <Button
-            onClick={() => setAutoApprove(!autoApprove)}
-            variant={autoApprove ? "default" : "outline"}
-            size="sm"
-            className={autoApprove ? "bg-green-600 hover:bg-green-700" : "border-border hover:bg-surface"}
-          >
-            <FastForward className="w-4 h-4 mr-2" />
-            {autoApprove ? "Auto-Approve ON" : "Auto-Approve"}
-          </Button>
-        </div>
+        {/* Left: Empty for spacing */}
+        <div></div>
 
         {/* User Prompt Display */}
         <div className="glass-card px-4 py-2 border border-border rounded-2xl max-w-md">
@@ -179,8 +287,39 @@ export function WorkflowSimulation({ workflow }: { workflow: WorkflowData }) {
           </p>
         </div>
 
-        <div className="text-text-secondary text-sm">
-          Agent {currentStep + 1} of {workflow.agentWorkflow.length}
+        {/* Right: Control Buttons */}
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setAutoApprove(!autoApprove)}
+            variant={autoApprove ? "default" : "outline"}
+            size="sm"
+            className={autoApprove ? "bg-green-600 hover:bg-green-700" : "border-border hover:bg-surface"}
+            title="Auto-Approve all steps"
+          >
+            ⏩ FF
+          </Button>
+          <Button
+            onClick={() => {
+              router.push("/ideas") // Go back to ideas page to stop the workflow
+            }}
+            variant="outline"
+            size="sm"
+            className="border-red-500 text-red-500 hover:bg-red-500/10"
+            title="Stop workflow"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+          <Button
+            onClick={() => {
+              setIsPaused(!isPaused)
+            }}
+            variant="outline"
+            size="sm"
+            className="border-border hover:bg-surface"
+            title={isPaused ? "Resume workflow" : "Pause workflow"}
+          >
+            {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+          </Button>
         </div>
       </div>
 
@@ -202,36 +341,91 @@ export function WorkflowSimulation({ workflow }: { workflow: WorkflowData }) {
 
             {/* Activity Indicator */}
             <div className="mt-3 flex gap-1">
-              {[0, 1, 2].map((i) => (
+              {[...Array(5)].map((_, i) => (
                 <div
                   key={i}
-                  className="w-1.5 h-1.5 rounded-full animate-pulse"
+                  className="h-1 flex-1 rounded-full bg-surface animate-pulse"
                   style={{
-                    backgroundColor: currentAgent.color,
-                    animationDelay: `${i * 200}ms`,
+                    backgroundColor: `${currentAgent.color}40`,
+                    animationDelay: `${i * 0.1}s`,
                   }}
                 />
               ))}
             </div>
           </div>
 
-          {/* Agent Thoughts */}
-          <AgentThoughts
-            agentName={currentAgent.agent}
-            agentRole={currentAgent.role}
-            initialThoughts={currentAgent.phases[0]?.thoughts}
-            userPrompt={workflow.userPrompt}
-            isActive={!isPaused && !isComplete}
-            color={currentAgent.color}
-          />
-
-          {/* Next Step Preview */}
-          {currentStep < workflow.agentWorkflow.length - 1 && (
-            <div className="glass-card p-4 border border-border/50 rounded-2xl opacity-60">
-              <p className="text-xs font-semibold uppercase text-text-muted mb-2">Next step</p>
-              <h3 className="text-sm font-bold text-text-secondary">{workflow.agentWorkflow[currentStep + 1].agent}</h3>
+          {/* Progress */}
+          <div className="glass-card p-4 border border-border rounded-2xl">
+            <p className="text-xs font-semibold uppercase text-text-muted mb-3">Progress</p>
+            <div className="space-y-2">
+              {workflow.agentWorkflow.map((agent, index) => (
+                <div key={agent.agent} className="flex items-center gap-2">
+                  <div
+                    className="w-2 h-2 rounded-full"
+                    style={{
+                      backgroundColor: index < currentStep ? agent.color : index === currentStep ? agent.color : "#374151",
+                      opacity: index < currentStep ? 1 : index === currentStep ? 1 : 0.3,
+                    }}
+                  />
+                  <span
+                    className={`text-xs ${
+                      index <= currentStep ? "text-text-primary" : "text-text-muted"
+                    }`}
+                  >
+                    {agent.agent}
+                  </span>
+                </div>
+              ))}
             </div>
-          )}
+          </div>
+
+          {/* Quick Actions */}
+          <div className="glass-card p-4 border border-border rounded-2xl">
+            <p className="text-xs font-semibold uppercase text-text-muted mb-3">Quick Actions</p>
+            <div className="space-y-2">
+              <Button
+                variant={autoApprove ? "default" : "outline"}
+                size="sm"
+                className="w-full justify-start text-xs border-border hover:bg-surface"
+                onClick={() => setAutoApprove(!autoApprove)}
+                style={{
+                  backgroundColor: autoApprove ? `${currentAgent.color}20` : "transparent",
+                  borderColor: currentAgent.color,
+                  color: autoApprove ? currentAgent.color : undefined,
+                }}
+              >
+                <FastForward className="w-3 h-3 mr-2" />
+                {autoApprove ? "Auto-Approve ON" : "Auto-Approve"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start text-xs border-border hover:bg-surface"
+                onClick={() => setIsPaused(!isPaused)}
+              >
+                {isPaused ? <Play className="w-3 h-3 mr-2" /> : <Pause className="w-3 h-3 mr-2" />}
+                {isPaused ? "Resume" : "Pause"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start text-xs border-border hover:bg-surface"
+                onClick={() => router.push("/ideas")}
+              >
+                <ChevronLeft className="w-3 h-3 mr-2" />
+                Back to Ideas
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start text-xs border-border hover:bg-surface"
+                onClick={() => router.push("/")}
+              >
+                <ChevronLeft className="w-3 h-3 mr-2" />
+                Home
+              </Button>
+            </div>
+          </div>
         </div>
 
         {/* CENTER COLUMN - Collaboration Log */}
@@ -244,42 +438,46 @@ export function WorkflowSimulation({ workflow }: { workflow: WorkflowData }) {
             </p>
           </div>
 
-          {/* Messages Container */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[600px]">
+          {/* Messages Container - Auto-scroll enabled */}
+          <div 
+            className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[600px]" 
+            ref={messagesEndRef as any}
+            style={{ scrollBehavior: "smooth" }}
+          >
             {messages.map((message, index) => (
               <div key={`${message.id}-${index}-${message.type}`}>
                 <AgentMessage message={message} index={index} />
                 {/* Show artifact button after initial output for specific agents */}
-                {message.type === "initial" && 
-                 (message.agentName === "UX Designer Agent" || 
-                  message.agentName === "Frontend Engineer Agent" || 
-                  message.agentName === "Backend Engineer Agent") && (
-                  <div className="mt-3 ml-11">
-                    {(() => {
-                      const agent = workflow.agentWorkflow.find(a => a.agent === message.agentName)
-                      const artifactButton = agent && isAgentComplete(message.agentName) ? getArtifactButton(agent) : null
-                      if (artifactButton) {
-                        const Icon = artifactButton.icon
-                        return (
-                          <Button
-                            onClick={artifactButton.onClick}
-                            className="text-sm"
-                            style={{
-                              backgroundColor: `${artifactButton.color}20`,
-                              borderColor: artifactButton.color,
-                              color: artifactButton.color
-                            }}
-                            variant="outline"
-                          >
-                            <Icon className="w-4 h-4 mr-2" />
-                            {artifactButton.label}
-                          </Button>
-                        )
-                      }
-                      return null
-                    })()}
-                  </div>
-                )}
+                {message.type === "initial" &&
+                  (message.agentName === "UX Designer Agent" ||
+                    message.agentName === "Frontend Engineer Agent" ||
+                    message.agentName === "Backend Engineer Agent") && (
+                    <div className="mt-3 ml-11">
+                      {(() => {
+                        const agent = workflow.agentWorkflow.find((a: Agent) => a.agent === message.agentName)
+                        const artifactButton = agent && isAgentComplete(message.agentName) ? getArtifactButton(agent) : null
+                        if (artifactButton) {
+                          const Icon = artifactButton.icon
+                          return (
+                            <Button
+                              onClick={artifactButton.onClick}
+                              className="text-sm bg-transparent"
+                              style={{
+                                backgroundColor: `${artifactButton.color}20`,
+                                borderColor: artifactButton.color,
+                                color: artifactButton.color,
+                              }}
+                              variant="outline"
+                            >
+                              <Icon className="w-4 h-4 mr-2" />
+                              {artifactButton.label}
+                            </Button>
+                          )
+                        }
+                        return null
+                      })()}
+                    </div>
+                  )}
               </div>
             ))}
             <div ref={messagesEndRef} />
@@ -289,214 +487,201 @@ export function WorkflowSimulation({ workflow }: { workflow: WorkflowData }) {
                 <p className="text-sm">Agents are thinking...</p>
               </div>
             )}
+          </div>
 
-            {/* Approval UI - Shows after agent completes */}
-            {pendingApproval !== null && (
-              <div className="mt-6 p-4 glass-card border-2 rounded-xl" style={{ borderColor: `${workflow.agentWorkflow[pendingApproval]?.color}80` }}>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold" style={{ backgroundColor: workflow.agentWorkflow[pendingApproval]?.color }}>
-                    {pendingApproval + 1}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-text-primary">{workflow.agentWorkflow[pendingApproval]?.agent} completed</h3>
-                    <p className="text-xs text-text-muted">Review and approve to continue</p>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <Textarea
-                    placeholder="Add feedback (optional)..."
-                    value={userFeedback[pendingApproval] || ""}
-                    onChange={(e) => setUserFeedback({ ...userFeedback, [pendingApproval]: e.target.value })}
-                    className="bg-transparent border-border focus-visible:ring-accent-primary/50 min-h-[80px]"
-                  />
-                  
-                  <div className="flex gap-3">
-                    <Button
-                      onClick={() => {
-                        approveStep(pendingApproval)
-                        // Clear feedback after approval
-                        setUserFeedback({ ...userFeedback, [pendingApproval]: "" })
-                      }}
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      <Check className="w-4 h-4 mr-2" />
-                      Approve & Continue
-                    </Button>
-                    <Button
-                      onClick={async () => {
-                        const stepIndex = pendingApproval
-                        setIsRegenerating({ ...isRegenerating, [stepIndex]: true })
-                        
-                        try {
-                          const agent = workflow.agentWorkflow[stepIndex]
-                          const initialPhase = agent.phases.find(p => p.type === "initial_output")
-                          const previousOutput = initialPhase?.output || ""
-                          
-                          // Call regenerate API
-                          const response = await fetch("/api/regenerate-agent-output", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              agentName: agent.agent,
-                              agentRole: agent.role,
-                              previousOutput,
-                              feedback: userFeedback[stepIndex] || "User rejected this output. Please regenerate with improvements.",
-                              userPrompt: workflow.userPrompt,
-                              requirements: workflow.clarifiedBrief?.description
-                            })
-                          })
-                          
-                          if (response.ok) {
-                            const { regeneratedOutput } = await response.json()
-                            
-                            // Update the agent's initial_output phase
-                            agent.phases = agent.phases.map((phase: any) => {
-                              if (phase.type === "initial_output") {
-                                return { ...phase, output: regeneratedOutput }
-                              }
-                              return phase
-                            })
-                            
-                            // Update workflow in sessionStorage
-                            const { storeWorkflowData } = await import("@/lib/workflow-storage")
-                            storeWorkflowData(workflow)
-                            
-                            // Remove old messages for this agent and add new one
-                            const filteredMessages = messages.filter(m => m.agentName !== agent.agent)
-                            const newMessage = {
-                              id: `${stepIndex}-${agent.agent.replace(/\s+/g, '-')}-0-initial_output-regenerated`,
-                              type: "initial" as const,
-                              agentName: agent.agent,
-                              agentColor: agent.color,
-                              phase: agent.phases[0],
-                              phaseIndex: 0
-                            }
-                            
-                            // Force re-render by updating messages
-                            // Note: This is a workaround - ideally we'd update the hook's state
-                            window.location.reload() // Reload to show regenerated output
-                          }
-                        } catch (error) {
-                          console.error("Failed to regenerate:", error)
-                          alert("Failed to regenerate output. Please try again.")
-                        } finally {
-                          setIsRegenerating({ ...isRegenerating, [stepIndex]: false })
-                        }
-                      }}
-                      variant="outline"
-                      disabled={isRegenerating[pendingApproval || -1]}
-                      className="flex-1 border-red-500/50 text-red-400 hover:bg-red-500/10 disabled:opacity-50"
-                    >
-                      {isRegenerating[pendingApproval || -1] ? (
-                        <>Regenerating...</>
-                      ) : (
-                        <>
-                          <X className="w-4 h-4 mr-2" />
-                          Reject & Send Feedback
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
+          {/* Footer Controls */}
+          <div className="border-t border-border p-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="autoScroll"
+                checked={autoScroll}
+                onChange={(e) => setAutoScroll(e.target.checked)}
+                className="rounded border-border"
+              />
+              <label htmlFor="autoScroll" className="text-xs text-text-secondary">
+                Auto-scroll
+              </label>
+            </div>
+            <div className="text-xs text-text-muted">
+              {isComplete ? "✅ Workflow Complete" : isPaused ? "⏸️ Paused" : "🔄 In Progress"}
+            </div>
           </div>
         </div>
 
-        {/* RIGHT COLUMN - Workflow Progress */}
-        <div className="glass-card p-6 border border-border rounded-2xl h-fit sticky top-6">
-          <h3 className="text-lg font-bold text-text-primary mb-6">Complete workflow</h3>
-
-          {/* Progress Steps */}
-          <div className="relative">
-            {/* Background line */}
-            <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-border"></div>
-
-            {/* Progress overlay */}
+        {/* RIGHT COLUMN - Approval UI */}
+        <div className="space-y-4">
+          {/* Approval Card */}
+          {pendingApproval !== null && !autoApprove && (
             <div
-              className="absolute left-3 top-0 w-0.5 bg-gradient-to-b from-primary to-secondary"
+              className="glass-card p-4 border-2 rounded-2xl"
               style={{
-                height: `${((currentStep + 1) / workflow.agentWorkflow.length) * 100}%`,
-                transition: "height 0.5s ease-out",
+                borderColor: `${workflow.agentWorkflow[pendingApproval].color}80`,
+                boxShadow: `0 0 20px ${workflow.agentWorkflow[pendingApproval].color}40`,
               }}
-            ></div>
+            >
+              <p className="text-xs font-semibold uppercase text-text-muted mb-2">Approval Required</p>
+              <h3 className="text-sm font-bold text-text-primary mb-2">
+                {workflow.agentWorkflow[pendingApproval].agent}
+              </h3>
+              <p className="text-xs text-text-secondary mb-4">
+                Review the output and decide whether to approve or request changes.
+              </p>
 
-            {/* Steps */}
-            <div className="space-y-6 relative z-10">
-              {workflow.agentWorkflow.map((agent, idx) => (
-                <div key={idx} className="pl-14">
-                  {/* Circle */}
-                  <div
-                    className="absolute left-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold -translate-x-1.5 transition-all"
-                    style={{
-                      backgroundColor: idx <= currentStep ? agent.color : "transparent",
-                      border: idx <= currentStep ? `2px solid ${agent.color}` : "2px solid rgba(255,255,255,0.1)",
-                      color: idx <= currentStep ? "#fff" : "rgba(255,255,255,0.4)",
-                      boxShadow: idx === currentStep ? `0 0 15px ${agent.color}80` : "none",
-                    }}
-                  >
-                    {idx < currentStep ? "✓" : idx + 1}
-                  </div>
+              {/* Feedback Input */}
+              <Textarea
+                placeholder="Optional feedback for rejection..."
+                value={userFeedback[pendingApproval] || ""}
+                onChange={(e) =>
+                  setUserFeedback({ ...userFeedback, [pendingApproval]: e.target.value })
+                }
+                className="mb-3 text-xs border-border"
+                rows={3}
+              />
 
-                  {/* Step Text */}
-                  <div className={idx === currentStep ? "opacity-100" : "opacity-50"}>
-                    <p
-                      className="text-sm font-semibold transition-all"
-                      style={{
-                        color: idx <= currentStep ? agent.color : "rgba(255,255,255,0.4)",
-                      }}
-                    >
-                      {agent.agent}
-                    </p>
-                    <p className="text-xs text-text-muted">{agent.role}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+              {/* Approval Buttons */}
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => {
+                    approveStep(pendingApproval);
+                    // Clear feedback after approval
+                    setUserFeedback({ ...userFeedback, [pendingApproval]: "" });
+                  }}
+                  className="flex-1 text-xs bg-green-600 hover:bg-green-700"
+                  size="sm"
+                >
+                  <Check className="w-3 h-3 mr-1" />
+                  Approve
+                </Button>
+                <Button
+                  onClick={async () => {
+                    const stepIndex = pendingApproval;
+                    setIsRegenerating({ ...isRegenerating, [stepIndex]: true });
 
-          {/* Quality Score */}
-          {currentStep < workflow.agentWorkflow.length && (
-            <div className="mt-6 pt-6 border-t border-border">
-              <p className="text-xs text-text-muted mb-2">Quality Score</p>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 h-2 bg-border rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-primary to-secondary transition-all"
-                    style={{
-                      width: `${currentAgent.phases[currentAgent.phases.length - 1]?.qualityScore || 0}%`,
-                    }}
-                  ></div>
-                </div>
-                <span className="text-sm font-bold text-text-primary">
-                  {currentAgent.phases[currentAgent.phases.length - 1]?.qualityScore || 0}%
-                </span>
+                    try {
+                      const agent = workflow.agentWorkflow[stepIndex];
+                      const initialPhase = agent.phases.find(p => p.type === "initial_output");
+                      const previousOutput = initialPhase?.output || "";
+
+                      // Call regenerate API
+                      const response = await fetch("/api/regenerate-agent-output", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          agentName: agent.agent,
+                          agentRole: agent.role,
+                          previousOutput,
+                          feedback: userFeedback[stepIndex] || "User rejected this output. Please regenerate with improvements.",
+                          userPrompt: workflow.userPrompt,
+                          requirements: workflow.clarifiedBrief?.description
+                        })
+                      });
+
+                      if (response.ok) {
+                        const { regeneratedOutput } = await response.json();
+
+                        // Update the agent's initial_output phase
+                        const updatedAgent = { ...agent };
+                        updatedAgent.phases = updatedAgent.phases.map((phase: any) => {
+                          if (phase.type === "initial_output") {
+                            return { ...phase, output: regeneratedOutput };
+                          }
+                          return phase;
+                        });
+
+                        // Replace the agent in the workflow
+                        const updatedWorkflow = { ...workflow };
+                        updatedWorkflow.agentWorkflow[stepIndex] = updatedAgent;
+
+                        // Update workflow in sessionStorage
+                        storeWorkflowData(updatedWorkflow);
+
+                        // Update the component state
+                        const updatedMessages = messages.map(msg => {
+                          if (msg.agentName === agent.agent && msg.phaseIndex === 0) {
+                            return { ...msg, phase: updatedAgent.phases[0] };
+                          }
+                          return msg;
+                        });
+                        
+                        setMessages(updatedMessages);
+                        
+                        // Store updated state
+                        storeSimulationState({
+                          currentStep,
+                          messages: updatedMessages,
+                          isComplete,
+                          isPaused
+                        });
+                      }
+                    } catch (error) {
+                      console.error("Failed to regenerate:", error);
+                      alert("Failed to regenerate output. Please try again.");
+                    } finally {
+                      setIsRegenerating({ ...isRegenerating, [stepIndex]: false });
+                    }
+                  }}
+                  variant="outline"
+                  className="flex-1 text-xs border-border hover:bg-surface"
+                  size="sm"
+                  disabled={isRegenerating[pendingApproval]}
+                >
+                  {isRegenerating[pendingApproval] ? (
+                    <>
+                      <div className="w-3 h-3 mr-1 animate-spin border border-current border-t-transparent rounded-full" />
+                      Regenerating...
+                    </>
+                  ) : (
+                    <>
+                      <X className="w-3 h-3 mr-1" />
+                      Reject
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
           )}
-        </div>
-      </div>
 
-      {/* Bottom Navigation */}
-      <div className="flex justify-center gap-4 mt-8 max-w-7xl mx-auto">
-        <Button
-          onClick={() => setIsPaused(true)}
-          variant="outline"
-          disabled={currentStep === 0}
-          className="border-border"
-        >
-          <ChevronLeft className="w-4 h-4 mr-2" />
-          Previous
-        </Button>
-        <Button
-          onClick={() => setIsPaused(true)}
-          disabled={currentStep === workflow.agentWorkflow.length - 1 || !isComplete}
-          className="bg-gradient-to-r from-primary to-secondary text-white"
-        >
-          Next
-          <ChevronRight className="w-4 h-4 ml-2" />
-        </Button>
+          {/* Agent Thoughts */}
+          <div className="glass-card p-4 border border-border rounded-2xl">
+            <p className="text-xs font-semibold uppercase text-text-muted mb-3">Agent Thoughts</p>
+            <AgentThoughts
+              agentName={currentAgent.agent}
+              agentRole={currentAgent.role}
+              initialThoughts={currentAgent.phases[0]?.thoughts}
+              userPrompt={workflow.userPrompt}
+              isActive={!isPaused && !isComplete}
+              color={currentAgent.color}
+            />
+          </div>
+
+          {/* Workflow Status */}
+          <div className="glass-card p-4 border border-border rounded-2xl">
+            <p className="text-xs font-semibold uppercase text-text-muted mb-3">Status</p>
+            <div className="space-y-2 text-xs text-text-secondary">
+              <div className="flex justify-between">
+                <span>Current Agent:</span>
+                <span className="text-text-primary">{currentAgent.agent}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Messages:</span>
+                <span className="text-text-primary">{messages.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Auto-Approve:</span>
+                <span className={autoApprove ? "text-green-600" : "text-text-muted"}>
+                  {autoApprove ? "Enabled" : "Disabled"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>State:</span>
+                <span className={isPaused ? "text-yellow-600" : isComplete ? "text-green-600" : "text-blue-600"}>
+                  {isPaused ? "Paused" : isComplete ? "Complete" : "Running"}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )

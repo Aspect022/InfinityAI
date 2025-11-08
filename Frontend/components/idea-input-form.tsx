@@ -120,7 +120,7 @@ export function IdeaInputForm() {
       {/* Input Section */}
       <div className="w-full max-w-3xl relative">
         {/* Purple aura glow behind the card */}
-        <div
+      <div
           className={`absolute -inset-2 rounded-2xl blur-2xl -z-10 transition-all duration-700 ${
             focusedCard ? "opacity-80 scale-105" : "opacity-40 scale-100"
           }`}
@@ -132,17 +132,17 @@ export function IdeaInputForm() {
 
         <div
           className={`w-full rounded-2xl border transition-all duration-500 relative overflow-hidden ${
-            focusedCard
+          focusedCard
               ? "border-purple-400/60 shadow-[0_0_40px_rgba(167,139,250,0.4)]"
               : "border-purple-500/20 shadow-[0_0_25px_rgba(167,139,250,0.15)]"
-          }`}
+        }`}
           style={{
             background: "rgba(25, 25, 25, 0.45)",
             backdropFilter: "blur(20px)",
           }}
-          onFocus={() => setFocusedCard(true)}
-          onBlur={() => setFocusedCard(false)}
-        >
+        onFocus={() => setFocusedCard(true)}
+        onBlur={() => setFocusedCard(false)}
+      >
           {/* Image / Voice Previews */}
           {(selectedImage || voiceTranscript) && (
             <div className="px-4 pt-3 pb-2 space-y-2">
@@ -178,13 +178,13 @@ export function IdeaInputForm() {
           {/* ChatGPT-style input row */}
           <div className="flex items-end gap-2 px-4 pb-3">
             {/* Upload */}
-            <button
-              onClick={() => imageInputRef.current?.click()}
+          <button
+            onClick={() => imageInputRef.current?.click()}
               className="w-10 h-10 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center active:scale-95"
-              title="Upload image"
-            >
+            title="Upload image"
+          >
               <Plus className="w-4 h-4" />
-            </button>
+          </button>
 
             {/* Transparent textarea */}
             <div className="flex-1 relative">
@@ -194,10 +194,10 @@ export function IdeaInputForm() {
                   backdropFilter: "blur(8px)",
                 }}
               />
-              <textarea
+          <textarea
                 ref={textareaRef}
-                value={idea}
-                onChange={(e) => setIdea(e.target.value)}
+            value={idea}
+            onChange={(e) => setIdea(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Share your idea..."
                 className="relative w-full bg-transparent text-white/70 placeholder-white/30 resize-none outline-none text-base font-normal overflow-y-auto py-2 px-3 rounded-xl backdrop-blur-md focus:ring-0 focus:outline-none"
@@ -211,8 +211,8 @@ export function IdeaInputForm() {
             </div>
 
             {/* Mic */}
-            <button
-              onClick={handleVoiceToggle}
+          <button
+            onClick={handleVoiceToggle}
               className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${
                 isRecording
                   ? "text-orange-400 bg-orange-500/10 animate-pulse"
@@ -221,7 +221,7 @@ export function IdeaInputForm() {
               title={isRecording ? "Stop recording" : "Start recording"}
             >
               <Mic className="w-4 h-4" />
-            </button>
+          </button>
 
             {/* Send */}
             <button

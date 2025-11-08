@@ -3,10 +3,18 @@
 import { Button } from "@/components/ui/button"
 import { ArrowRight, Sparkles } from "lucide-react"
 import Link from "next/link"
+import { PromptInputBox } from "./prompt-input-box"
+import { useRouter } from "next/navigation"
 
 export function LandingHero() {
+  const router = useRouter()
+
+  const handleSendMessage = (message: string, files?: File[]) => {
+    router.push("/ideas?message=" + encodeURIComponent(message))
+  }
+
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-center px-4 md:px-8 py-20 overflow-hidden">
+    <div className="relative min-h-screen flex flex-col items-center justify-center px-4 md:px-8 py-20 overflow-hidden pt-20">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-20 left-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
         <div className="absolute bottom-20 right-10 w-96 h-96 bg-secondary/5 rounded-full blur-3xl" />
@@ -32,6 +40,11 @@ export function LandingHero() {
           </p>
         </div>
 
+        {/* Prompt Input Box */}
+        <div className="w-full max-w-2xl mx-auto pt-8">
+          <PromptInputBox placeholder="Describe your idea here..." onSend={handleSendMessage} />
+        </div>
+
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
           <Link href="/ideas">
@@ -39,8 +52,7 @@ export function LandingHero() {
               size="lg"
               className="w-full sm:w-auto neumorphic-btn bg-primary hover:bg-primary/90 text-primary-foreground"
             >
-              Get Started
-              <ArrowRight className="w-5 h-5 ml-2" />
+              <ArrowRight className="w-5 h-5" />
             </Button>
           </Link>
           <Button

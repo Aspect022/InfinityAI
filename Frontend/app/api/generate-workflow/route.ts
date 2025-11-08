@@ -1,7 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai"
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-
 export async function POST(request: Request) {
   try {
     const formData = await request.formData()
@@ -13,9 +11,160 @@ export async function POST(request: Request) {
     if (text) userInput += `Text idea: ${text}\n`
     if (voiceText) userInput += `Voice description: ${voiceText}\n`
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" })
+    // Check if GEMINI_API_KEY is available
+    const geminiApiKey = process.env.GEMINI_API_KEY
+    const openRouterApiKey = process.env.OPEN_ROUTER_API_KEY
+    
+    if (!geminiApiKey && !openRouterApiKey) {
+      // Return a basic workflow template as fallback
+      console.log("[v0] No API keys found, using fallback workflow")
+      
+      const fallbackWorkflow = {
+        userPrompt: text || voiceText || "Default workflow",
+        projectName: "Default Project",
+        clarifiedBrief: {
+          title: "Default Project",
+          description: userInput || "A default project based on user requirements"
+        },
+        agentWorkflow: [
+          {
+            step: 1,
+            agent: "CEO Agent",
+            role: "Defines vision and strategy",
+            color: "#00d4ff",
+            phases: [
+              {
+                type: "initial_output",
+                thoughts: ["Strategic thinking", "Vision alignment", "Goal setting"],
+                output: "CEO defines the overall vision for the project based on user requirements",
+                timestamp: "00:00:02"
+              },
+              {
+                type: "critic_review",
+                strengths: ["Clear vision defined"],
+                issues: [{"severity": "medium", "description": "Needs specific KPIs"}],
+                recommendations: ["Add metrics"],
+                status: "needs_improvement",
+                timestamp: "00:00:03"
+              },
+              {
+                type: "improver_refinement",
+                improvements: ["Added KPIs"],
+                output: "Improved strategy with specific metrics and success indicators",
+                timestamp: "00:00:05"
+              },
+              {
+                type: "final_approval",
+                validations: ["Metrics validated"],
+                qualityScore: 92,
+                status: "approved",
+                timestamp: "00:00:06"
+              }
+            ]
+          },
+          {
+            step: 2,
+            agent: "Product Manager Agent",
+            role: "Creates PRD and requirements",
+            color: "#a78bfa",
+            phases: [
+              {"type": "initial_output", "thoughts": ["User research", "Requirement gathering"], "output": "PM creates product requirements document based on CEO's vision", "timestamp": "00:00:10"},
+              {"type": "critic_review", "strengths": ["Comprehensive requirements"], "issues": [], "recommendations": [], "status": "approved", "timestamp": "00:00:11"},
+              {"type": "improver_refinement", "improvements": [], "output": "Enhanced PRD with user stories", "timestamp": "00:00:13"},
+              {"type": "final_approval", "validations": ["Approved"], "qualityScore": 95, "status": "approved", "timestamp": "00:00:14"}
+            ]
+          },
+          {
+            step: 3,
+            agent: "UX Designer Agent",
+            role: "Designs wireframes and user flows",
+            color: "#f59e0b",
+            phases: [
+              {
+                type: "initial_output",
+                thoughts: ["Design", "User flows", "Layout"],
+                output: "Designer creates wireframes based on PRD requirements",
+                wireframes: [],
+                timestamp: "00:00:18"
+              },
+              {"type": "critic_review", "strengths": ["Clear layout"], "issues": [{"severity": "low", "description": "Could improve spacing"}], "recommendations": ["Add more whitespace"], "status": "needs_improvement", "timestamp": "00:00:19"},
+              {"type": "improver_refinement", "improvements": ["Improved spacing", "Better visual hierarchy"], "output": "Enhanced design with better spacing", "timestamp": "00:00:21"},
+              {"type": "final_approval", "validations": ["Approved"], "qualityScore": 89, "status": "approved", "timestamp": "00:00:22"}
+            ]
+          },
+          {
+            step: 4,
+            agent: "Frontend Engineer Agent",
+            role: "Builds UI components and interactions",
+            color: "#10b981",
+            phases: [
+              {
+                type: "initial_output",
+                thoughts: ["Components", "React", "Styling"],
+                output: "Frontend builds React components based on wireframes",
+                frontendCode: [],
+                timestamp: "00:00:26"
+              },
+              {"type": "critic_review", "strengths": ["Clean code"], "issues": [{"severity": "medium", "description": "Missing error handling"}], "recommendations": ["Add error boundaries"], "status": "needs_improvement", "timestamp": "00:00:27"},
+              {"type": "improver_refinement", "improvements": ["Added error handling", "Improved accessibility"], "output": "Enhanced frontend with error handling", "timestamp": "00:00:29"},
+              {"type": "final_approval", "validations": ["Approved"], "qualityScore": 91, "status": "approved", "timestamp": "00:00:30"}
+            ]
+          },
+          {
+            step: 5,
+            agent: "Backend Engineer Agent",
+            role: "Develops APIs and database",
+            color: "#3b82f6",
+            phases: [
+              {
+                type: "initial_output",
+                thoughts: ["Database", "API", "Schema"],
+                output: "Backend designs APIs and database schema",
+                backendCode: [],
+                timestamp: "00:00:34"
+              },
+              {"type": "critic_review", "strengths": ["RESTful design"], "issues": [{"severity": "low", "description": "Could add rate limiting"}], "recommendations": ["Add rate limiting middleware"], "status": "needs_improvement", "timestamp": "00:00:35"},
+              {"type": "improver_refinement", "improvements": ["Added rate limiting", "Improved security"], "output": "Enhanced backend with security", "timestamp": "00:00:37"},
+              {"type": "final_approval", "validations": ["Approved"], "qualityScore": 94, "status": "approved", "timestamp": "00:00:38"}
+            ]
+          },
+          {
+            step: 6,
+            agent: "QA Agent",
+            role: "Tests functionality and quality",
+            color: "#ec4899",
+            phases: [
+              {"type": "initial_output", "thoughts": ["Testing", "Quality assessment"], "output": "QA creates test suite", "timestamp": "00:00:42"},
+              {"type": "critic_review", "strengths": [], "issues": [], "recommendations": [], "status": "approved", "timestamp": "00:00:43"},
+              {"type": "improver_refinement", "improvements": [], "output": "Complete tests", "timestamp": "00:00:45"},
+              {"type": "final_approval", "validations": ["Approved"], "qualityScore": 96, "status": "approved", "timestamp": "00:00:46"}
+            ]
+          },
+          {
+            step: 7,
+            agent: "Global Critic Agent",
+            role: "Final system-wide review",
+            color: "#ef4444",
+            phases: [
+              {"type": "initial_output", "thoughts": ["Review", "Integration"], "output": "Global critic reviews complete system", "timestamp": "00:00:50"},
+              {"type": "critic_review", "strengths": [], "issues": [], "recommendations": [], "status": "approved", "timestamp": "00:00:51"},
+              {"type": "improver_refinement", "improvements": [], "output": "System validated", "timestamp": "00:00:53"},
+              {"type": "final_approval", "validations": ["Approved"], "qualityScore": 98, "status": "approved", "timestamp": "00:00:54"}
+            ]
+          }
+        ]
+      }
+      
+      return Response.json({ workflow: fallbackWorkflow })
+    }
 
-    const workflowPrompt = `You are FlowMaster - an AI system that simulates a multi-agent workflow collaboration.
+    // Use GEMINI_API_KEY if available, otherwise try OpenRouter
+    let responseText;
+    if (geminiApiKey) {
+      const genAI = new GoogleGenerativeAI(geminiApiKey)
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" })
+
+      const workflowPrompt = `You are FlowMaster - an AI system that simulates a multi-agent workflow collaboration.
 
 Given this user idea:
 ${userInput}
@@ -174,26 +323,215 @@ CRITICAL: Return ONLY a valid JSON object with absolutely NO markdown formatting
   ]
 }`
 
-    let result
-    if (image) {
-      const imageBuffer = await image.arrayBuffer()
-      const base64Image = Buffer.from(imageBuffer).toString("base64")
-      const mimeType = image.type || "image/png"
+      let result
+      if (image) {
+        const imageBuffer = await image.arrayBuffer()
+        const base64Image = Buffer.from(imageBuffer).toString("base64")
+        const mimeType = image.type || "image/png"
 
-      result = await model.generateContent([
-        {
-          inlineData: {
-            data: base64Image,
-            mimeType: mimeType,
+        result = await model.generateContent([
+          {
+            inlineData: {
+              data: base64Image,
+              mimeType: mimeType,
+            },
           },
-        },
-        workflowPrompt,
-      ])
-    } else {
-      result = await model.generateContent(workflowPrompt)
-    }
+          workflowPrompt,
+        ])
+      } else {
+        result = await model.generateContent(workflowPrompt)
+      }
 
-    const responseText = result.response.text()
+      responseText = result.response.text()
+    } else if (openRouterApiKey) {
+      // Use OpenRouter API as fallback
+      const openRouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${openRouterApiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "google/gemini-pro-vision", // or another available model
+          messages: [
+            {
+              role: "system",
+              content: "You are FlowMaster - an AI system that simulates a multi-agent workflow collaboration."
+            },
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: `Given this user idea: ${userInput}
+
+Generate a COMPLETE workflow simulation showing 7 agents (CEO, PM, Designer, Frontend, Backend, QA, Global Critic) working sequentially with realistic feedback cycles.
+
+IMPORTANT: 
+- UX Designer Agent (step 3) MUST include "wireframes" array in initial_output phase with wireframe data (can be descriptive text or base64 placeholder)
+- Frontend Engineer Agent (step 4) MUST include "frontendCode" array in initial_output phase with code files
+- Backend Engineer Agent (step 5) MUST include "backendCode" array in initial_output phase with code files
+
+CRITICAL: Return ONLY a valid JSON object with absolutely NO markdown formatting, NO code blocks, NO backticks, NO extra text. Start immediately with { and end with }:
+
+{
+  "userPrompt": "${text || voiceText || "Image-based workflow"}",
+  "projectName": "ProjectName",
+  "clarifiedBrief": {
+    "title": "Brief title",
+    "description": "Clear description of what's being built"
+  },
+  "agentWorkflow": [
+    {
+      "step": 1,
+      "agent": "CEO Agent",
+      "role": "Defines vision and strategy",
+      "color": "#00d4ff",
+      "phases": [
+        {
+          "type": "initial_output",
+          "thoughts": ["thought1", "thought2", "thought3"],
+          "output": "CEO's strategic vision...",
+          "timestamp": "00:00:02"
+        },
+        {
+          "type": "critic_review",
+          "strengths": ["Clear vision"],
+          "issues": [{"severity": "medium", "description": "Needs specific KPIs"}],
+          "recommendations": ["Add metrics"],
+          "status": "needs_improvement",
+          "timestamp": "00:00:03"
+        },
+        {
+          "type": "improver_refinement",
+          "improvements": ["Added KPIs"],
+          "output": "Improved strategy...",
+          "timestamp": "00:00:05"
+        },
+        {
+          "type": "final_approval",
+          "validations": ["Metrics validated"],
+          "qualityScore": 92,
+          "status": "approved",
+          "timestamp": "00:00:06"
+        }
+      ]
+    },
+    {
+      "step": 2,
+      "agent": "Product Manager Agent",
+      "role": "Creates PRD and requirements",
+      "color": "#a78bfa",
+      "phases": [
+        {"type": "initial_output", "thoughts": ["User research"], "output": "PM creates PRD...", "timestamp": "00:00:10"},
+        {"type": "critic_review", "strengths": ["Comprehensive"], "issues": [], "recommendations": [], "status": "approved", "timestamp": "00:00:11"},
+        {"type": "improver_refinement", "improvements": [], "output": "Enhanced PRD...", "timestamp": "00:00:13"},
+        {"type": "final_approval", "validations": ["Approved"], "qualityScore": 95, "status": "approved", "timestamp": "00:00:14"}
+      ]
+    },
+    {
+      "step": 3,
+      "agent": "UX Designer Agent",
+      "role": "Designs wireframes and user flows",
+      "color": "#f59e0b",
+      "phases": [
+        {
+          "type": "initial_output",
+          "thoughts": ["Design", "User flows", "Layout"],
+          "output": "Designer creates wireframes based on PRD requirements...",
+          "wireframes": [
+            {"id": "wf1", "name": "Homepage", "description": "Main landing page wireframe", "data": "base64_or_svg_data_here"},
+            {"id": "wf2", "name": "Dashboard", "description": "User dashboard wireframe", "data": "base64_or_svg_data_here"}
+          ],
+          "timestamp": "00:00:18"
+        },
+        {"type": "critic_review", "strengths": ["Clear layout"], "issues": [{"severity": "low", "description": "Could improve spacing"}], "recommendations": ["Add more whitespace"], "status": "needs_improvement", "timestamp": "00:00:19"},
+        {"type": "improver_refinement", "improvements": ["Improved spacing", "Better visual hierarchy"], "output": "Enhanced design with better spacing...", "timestamp": "00:00:21"},
+        {"type": "final_approval", "validations": ["Approved"], "qualityScore": 89, "status": "approved", "timestamp": "00:00:22"}
+      ]
+    },
+    {
+      "step": 4,
+      "agent": "Frontend Engineer Agent",
+      "role": "Builds UI components and interactions",
+      "color": "#10b981",
+      "phases": [
+        {
+          "type": "initial_output",
+          "thoughts": ["Components", "React", "Styling"],
+          "output": "Frontend builds React components based on wireframes...",
+          "frontendCode": [
+            {"path": "components/HomePage.tsx", "code": "// React component code here", "language": "tsx"},
+            {"path": "components/Dashboard.tsx", "code": "// React component code here", "language": "tsx"}
+          ],
+          "timestamp": "00:00:26"
+        },
+        {"type": "critic_review", "strengths": ["Clean code"], "issues": [{"severity": "medium", "description": "Missing error handling"}], "recommendations": ["Add error boundaries"], "status": "needs_improvement", "timestamp": "00:00:27"},
+        {"type": "improver_refinement", "improvements": ["Added error handling", "Improved accessibility"], "output": "Enhanced frontend with error handling...", "timestamp": "00:00:29"},
+        {"type": "final_approval", "validations": ["Approved"], "qualityScore": 91, "status": "approved", "timestamp": "00:00:30"}
+      ]
+    },
+    {
+      "step": 5,
+      "agent": "Backend Engineer Agent",
+      "role": "Develops APIs and database",
+      "color": "#3b82f6",
+      "phases": [
+        {
+          "type": "initial_output",
+          "thoughts": ["Database", "API", "Schema"],
+          "output": "Backend designs APIs and database schema...",
+          "backendCode": [
+            {"path": "api/users/route.ts", "code": "// API route code here", "language": "typescript"},
+            {"path": "schema.sql", "code": "// Database schema here", "language": "sql"}
+          ],
+          "timestamp": "00:00:34"
+        },
+        {"type": "critic_review", "strengths": ["RESTful design"], "issues": [{"severity": "low", "description": "Could add rate limiting"}], "recommendations": ["Add rate limiting middleware"], "status": "needs_improvement", "timestamp": "00:00:35"},
+        {"type": "improver_refinement", "improvements": ["Added rate limiting", "Improved security"], "output": "Enhanced backend with security...", "timestamp": "00:00:37"},
+        {"type": "final_approval", "validations": ["Approved"], "qualityScore": 94, "status": "approved", "timestamp": "00:00:38"}
+      ]
+    },
+    {
+      "step": 6,
+      "agent": "QA Agent",
+      "role": "Tests functionality and quality",
+      "color": "#ec4899",
+      "phases": [
+        {"type": "initial_output", "thoughts": ["Testing"], "output": "QA creates test suite...", "timestamp": "00:00:42"},
+        {"type": "critic_review", "strengths": [], "issues": [], "recommendations": [], "status": "approved", "timestamp": "00:00:43"},
+        {"type": "improver_refinement", "improvements": [], "output": "Complete tests...", "timestamp": "00:00:45"},
+        {"type": "final_approval", "validations": ["Approved"], "qualityScore": 96, "status": "approved", "timestamp": "00:00:46"}
+      ]
+    },
+    {
+      "step": 7,
+      "agent": "Global Critic Agent",
+      "role": "Final system-wide review",
+      "color": "#ef4444",
+      "phases": [
+        {"type": "initial_output", "thoughts": ["Review"], "output": "Global critic reviews...", "timestamp": "00:00:50"},
+        {"type": "critic_review", "strengths": [], "issues": [], "recommendations": [], "status": "approved", "timestamp": "00:00:51"},
+        {"type": "improver_refinement", "improvements": [], "output": "System ready...", "timestamp": "00:00:53"},
+        {"type": "final_approval", "validations": ["Approved"], "qualityScore": 98, "status": "approved", "timestamp": "00:00:54"}
+      ]
+    }
+  ]
+}`
+                }
+              ]
+            }
+          ]
+        })
+      });
+
+      if (!openRouterResponse.ok) {
+        throw new Error(`OpenRouter API error: ${openRouterResponse.status}`);
+      }
+      
+      const openRouterData = await openRouterResponse.json();
+      responseText = openRouterData.choices[0].message.content;
+    }
     console.log("[v0] API Response received, length:", responseText.length)
 
     // Safe JSON parsing function

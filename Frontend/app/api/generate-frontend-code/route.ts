@@ -97,4 +97,3 @@ Return JSON format with properly formatted code:
     return Response.json({ error: "Failed to generate frontend code" }, { status: 500 })
   }
 }
-

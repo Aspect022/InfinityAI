@@ -144,4 +144,3 @@ export function WireframeViewer({ wireframes, currentIndex, onIndexChange }: Wir
     </div>
   )
 }
-
