@@ -164,7 +164,7 @@ export async function POST(request: Request) {
       const genAI = new GoogleGenerativeAI(geminiApiKey)
       const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" })
 
-      const workflowPrompt = `You are FlowMaster - an AI system that simulates a multi-agent workflow collaboration.
+      const workflowPrompt = `You are InfinityAI - an AI system that simulates a multi-agent workflow collaboration.
 
 Given this user idea:
 ${userInput}
@@ -356,7 +356,7 @@ CRITICAL: Return ONLY a valid JSON object with absolutely NO markdown formatting
           messages: [
             {
               role: "system",
-              content: "You are FlowMaster - an AI system that simulates a multi-agent workflow collaboration."
+              content: "You are InfinityAI - an AI system that simulates a multi-agent workflow collaboration."
             },
             {
               role: "user",

@@ -28,7 +28,7 @@ export default function Header() {
             <Zap className="w-5 h-5 text-cyan-400" />
           </div>
           <span className="font-bold text-lg bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent hidden sm:inline">
-            FlowMaster
+            InfinityAI
           </span>
         </Link>
 

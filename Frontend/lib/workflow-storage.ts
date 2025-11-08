@@ -3,10 +3,10 @@
  * This avoids URL length limitations when passing large workflow data
  */
 
-const WORKFLOW_STORAGE_KEY = "flowmaster_workflow_data"
-const ARTIFACT_STORAGE_KEY = "flowmaster_artifact_data"
-const SIMULATION_STATE_KEY = "flowmaster_simulation_state"
-const PENDING_ARTIFACT_JOB_KEY = "flowmaster_pending_artifact_job"
+const WORKFLOW_STORAGE_KEY = "infinityai_workflow_data"
+const ARTIFACT_STORAGE_KEY = "infinityai_artifact_data"
+const SIMULATION_STATE_KEY = "infinityai_simulation_state"
+const PENDING_ARTIFACT_JOB_KEY = "infinityai_pending_artifact_job"
 
 export interface WorkflowData {
   userPrompt: string

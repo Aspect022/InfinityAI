@@ -10,7 +10,7 @@ export default function LearnPage() {
     <main className="min-h-screen pt-40 pb-20 px-4">
       <ParticleBackground />
       <div className="relative z-10 max-w-6xl mx-auto">
-        <h1 className="text-5xl font-bold text-white mb-4 text-center">Learn How FlowMaster Works</h1>
+        <h1 className="text-5xl font-bold text-white mb-4 text-center">Learn How InfinityAI Works</h1>
         <p className="text-text-secondary text-center text-lg mb-12">Watch our demo and explore the architecture</p>
 
         {/* Demo Video Section */}

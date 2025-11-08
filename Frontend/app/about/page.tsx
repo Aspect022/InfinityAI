@@ -39,12 +39,12 @@ export default function AboutPage() {
     <main className="min-h-screen pt-40 pb-20 px-4">
       <ParticleBackground />
       <div className="relative z-10 max-w-6xl mx-auto">
-        <h1 className="text-5xl font-bold text-white mb-4 text-center">About FlowMaster</h1>
+        <h1 className="text-5xl font-bold text-white mb-4 text-center">About InfinityAI</h1>
 
         {/* About Us Section */}
         <div className="mb-20 max-w-3xl mx-auto">
           <p className="text-text-secondary text-lg leading-relaxed text-center">
-            FlowMaster is an innovative platform powered by cutting-edge AI technology that transforms your ideas into
+            InfinityAI is an innovative platform powered by cutting-edge AI technology that transforms your ideas into
             fully functional workflows. We believe in the power of automation and collaborative AI agents to amplify
             human creativity and productivity. Our mission is to democratize workflow automation and make it accessible
             to everyone, from startups to enterprises.

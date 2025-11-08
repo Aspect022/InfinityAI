@@ -24,7 +24,7 @@ export function LandingHero() {
         {/* Badge */}
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card glass-card-hover">
           <Sparkles className="w-4 h-4 text-primary animate-pulse" />
-          <span className="text-sm text-text-secondary">Welcome to FlowMaster</span>
+          <span className="text-sm text-text-secondary">Welcome to InfinityAI</span>
         </div>
 
         {/* Main heading */}

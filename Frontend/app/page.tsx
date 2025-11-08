@@ -40,7 +40,7 @@ export default function Home() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400"></span>
               </span>
-              <span className="text-sm text-text-secondary">Welcome to FlowMaster</span>
+              <span className="text-sm text-text-secondary">Welcome to InfinityAI</span>
             </div>
 
             {/* Main heading */}

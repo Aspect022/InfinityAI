@@ -38,7 +38,7 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
     <>
       {isHomePage ? (
         <CardNav
-          logo="FlowMaster"
+          logo="InfinityAI"
           items={navItems}
           buttonBgColor="#00d4ff"
           buttonTextColor="#0f172a"
