@@ -101,12 +101,9 @@ export function WorkflowSimulation({ workflow }: { workflow: WorkflowData }) {
     resolvedPhase.wireframes = resolvedPhase.wireframes ?? []
 
     if (agent.agent === "UX Designer Agent") {
-      const hasGeneratedWireframes = resolvedPhase.wireframes.some(
-        (wf: any) => wf.data && wf.data.startsWith("data:image")
-      )
-
+      // Always show "View Wireframes" that will go to the wireframes page with random wireframes
       return {
-        label: hasGeneratedWireframes ? "View Wireframes" : "Select Wireframes",
+        label: "View Wireframes",
         icon: Eye,
         onClick: async () => {
           // Save current state before navigating
@@ -117,37 +114,8 @@ export function WorkflowSimulation({ workflow }: { workflow: WorkflowData }) {
             isPaused,
           })
           
-          const needsSelection = !hasGeneratedWireframes
-
-          if (needsSelection) {
-            const agentIndex = getAgentStepIndex(agent.agent)
-
-            // Persist latest workflow snapshot so processing can enrich it
-            storeWorkflowData(workflow)
-
-            // Use static wireframe selection instead of generation
-            storePendingArtifactJob({
-              type: "wireframes",
-              payload: {
-                request: {
-                  prd: workflow.clarifiedBrief?.description,
-                  requirements: workflow.clarifiedBrief,
-                  userPrompt: workflow.userPrompt,
-                },
-                agentIndex,
-              },
-            })
-
-            router.push("/processing?type=wireframes")
-          } else {
-            // Wireframes already exist, navigate directly
-            storeArtifactData({
-              type: "wireframes",
-              artifacts: resolvedPhase.wireframes,
-              agentIndex: getAgentStepIndex(agent.agent),
-            })
-            router.push("/wireframes")
-          }
+          // Navigate directly to wireframes page
+          router.push("/wireframes")
         },
         color: agent.color
       }

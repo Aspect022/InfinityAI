@@ -204,9 +204,18 @@ const CardNav: React.FC<CardNavProps> = ({
             href="/"
             className="logo-container flex items-center md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 order-1 md:order-none"
           >
-            <span className="text-lg font-bold" style={{ color: menuColor || "#00d4ff" }}>
-              {logo}
-            </span>
+            <div className="flex items-center gap-2">
+              <img 
+                src="/logo.jpg" 
+                alt={logoAlt} 
+                className="w-6 h-6 object-contain"
+                width={24}
+                height={24}
+              />
+              <span className="text-lg font-bold" style={{ color: menuColor || "#00d4ff" }}>
+                {logo}
+              </span>
+            </div>
           </Link>
 
           <Link href="/ideas">

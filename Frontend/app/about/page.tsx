@@ -11,26 +11,26 @@ export default function AboutPage() {
   const team = [
     {
       id: 1,
-      name: "Team Lead",
-      role: "Product Visionary",
-      bio: "Passionate about AI and automation",
-      image: "👨‍💼",
+      name: "Jayesh",
+      role: "Team Lead & Full Stack Developer",
+      bio: "Leads our development team and builds the core infrastructure that makes InfinityAI possible, working across both frontend and backend technologies.",
+      image: "👨‍💻",
       links: {
-        linkedin: "https://linkedin.com",
-        github: "https://github.com",
-        website: "https://example.com",
+        linkedin: "https://linkedin.com/jayesh",
+        github: "https://github.com/jayesh",
+        website: "https://jayesh.com",
       },
     },
     {
       id: 2,
-      name: "Tech Lead",
-      role: "Full Stack Engineer",
-      bio: "Expert in workflow automation",
-      image: "👨‍💻",
+      name: "Rajath",
+      role: "AI/ML Agentic Orchestration",
+      bio: "Specializes in AI and machine learning systems, designing the intelligent agent workflows that power our multi-agent collaboration system.",
+      image: "🤖",
       links: {
-        linkedin: "https://linkedin.com",
-        github: "https://github.com",
-        website: "https://example.com",
+        linkedin: "https://linkedin.com/rajath",
+        github: "https://github.com/rajath",
+        website: "https://rajath.com",
       },
     },
   ]
@@ -44,10 +44,7 @@ export default function AboutPage() {
         {/* About Us Section */}
         <div className="mb-20 max-w-3xl mx-auto">
           <p className="text-text-secondary text-lg leading-relaxed text-center">
-            InfinityAI is an innovative platform powered by cutting-edge AI technology that transforms your ideas into
-            fully functional workflows. We believe in the power of automation and collaborative AI agents to amplify
-            human creativity and productivity. Our mission is to democratize workflow automation and make it accessible
-            to everyone, from startups to enterprises.
+            InfinityAI is an innovative platform powered by cutting-edge AI technology that transforms your ideas into comprehensive workflows. Our platform orchestrates a team of AI agents to collaboratively develop your concepts from initial ideas to fully-fledged applications, complete with wireframes, frontend, and backend code.
           </p>
         </div>
 
